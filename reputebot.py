@@ -28,24 +28,28 @@ from scholarly import scholarly
 
 def run_bot(r, replied_articles_id):
     
-    print("Running Bot")
+    #print("Running Bot")
     for submission in r.subreddit('wormstest').new(limit = 25):
 
         if (("expert" in submission.title.lower()) and not submission.author == r.user.me() and not "bot" in submission.author.name and submission.id not in replied_articles_id):
 
             if not submission.selftext:
-                reputereply = 'The article title mentions an expert. \n\n The article was scanned and the following names were identified: \n\n' + get_qualification_response(submission.url)
 
-                reputereply = reputereply + "\n\n***\n\n" + "[v0.1](" + "https://github.com/Wormsblink/reputebot" + ") by Worms_sg and running on Raspberry Pi400 | PM wormsbot if bot is down"
+                qualifications_check = get_qualification_response(submission.url)
 
-                submission.reply(reputereply)
+                if qualifications_check != None:
 
-                print("Replied to submission " + submission.id + " by " + submission.author.name)
-                replied_articles_id.append(submission.id)
-                with open ("replied_articles.txt", "a") as f:
-                        f.write(submission.id + "\n")
+                    reputereply = 'The article title mentions an expert. The article text was scanned and the following names were identified: \n\n' + get_qualification_response(submission.url)
+                    reputereply = reputereply + "\n\n***\n\n" + "[v0.1](" + "https://github.com/Wormsblink/reputebot" + ") by Worms_sg and running on Raspberry Pi400 | PM wormsbot if bot is down"
 
-    print("Sleeping for 10 seconds")
+                    submission.reply(reputereply)
+
+                    print("Replied to submission " + submission.id + " by " + submission.author.name)
+                    replied_articles_id.append(submission.id)
+                    with open ("replied_articles.txt", "a") as f:
+                            f.write(submission.id + "\n")
+
+    #print("Sleeping for 10 seconds")
     time.sleep(10)
 
 def get_replied_articles():
@@ -109,7 +113,7 @@ def get_qualification_response(url):
     people = get_people_from_article(url)
     people = list(set(people))
 
-    print(people)
+    #print(people)
 
     Qual_list = ""
     qualifications = None
@@ -137,7 +141,7 @@ def get_qualification_response(url):
         return(Qual_list)
 
     else:
-        return("unable to read article")
+        return(None)
 
 # Main
 
