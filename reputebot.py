@@ -17,9 +17,6 @@ def bot_login():
 
 from newspaper import Article
 import spacy
-# spacy download en_core_web_sm
-# spacy download en_core_web_trf
-
 import orcid
 from orcidconfig import client_id as institution_key
 from orcidconfig import client_secret as institution_secret
@@ -28,6 +25,14 @@ from scholarly import scholarly
 
 def run_bot(r, replied_articles_id):
     
+    try:
+
+        api = orcid.PublicAPI(institution_key, institution_secret, sandbox=False)
+        search_token = api.get_search_token_from_orcid()
+
+    except:
+        api = None
+
     #print("Running Bot")
     for submission in r.subreddit('wormstest').new(limit = 25):
 
@@ -39,7 +44,7 @@ def run_bot(r, replied_articles_id):
 
                 if qualifications_check != None:
 
-                    reputereply = 'The article title mentions an expert. The article text was scanned and the following names were identified: \n\n' + get_qualification_response(submission.url)
+                    reputereply = 'The article title mentions an expert. The article text was scanned and the following names were identified: \n\n' + qualifications_check
                     reputereply = reputereply + "\n\n***\n\n" + "[v0.1](" + "https://github.com/Wormsblink/reputebot" + ") by Worms_sg and running on Raspberry Pi400 | PM wormsbot if bot is down"
 
                     submission.reply(reputereply)
@@ -74,7 +79,13 @@ def get_people_from_article(article_url):
     if not newstext:
         return()
     else:
-        nlp = spacy.load("en_core_web_trf")
+
+        # spacy en_core_web_sm
+        # most efficient 
+        # spacy en_core_web_trf
+        # most accurate
+
+        nlp = spacy.load("en_core_web_lg")
         doc = nlp(newstext)
 
         people = []
@@ -102,7 +113,16 @@ def search_google_scholar_credentials(subject_name):
         print("Searching Google Scholar for " + subject_name)
         search_query = scholarly.search_author(subject_name)
         author = scholarly.fill(next(search_query), sections = ['basics', 'publications'])
-        Greply = 'Recognied by Google Scholar. Affliated with ' + author['affiliation'] + '. Published ' + str(len(author['publications'])) + ' Articles. Cited ' + str(author['citedby']) + ' times.'
+        scholar_id = author['scholar_id']
+        scholar_affliation = author['affiliation']
+        nPublications = str(len(author['publications']))
+        nCitedby = str(author['citedby'])
+
+        #hindex = author['hindex']
+
+        Greply = 'Recognied by Google Scholar (ID: ' + scholar_id + '). Affliated with ' + scholar_affliation + '.\n\n Published ' + nPublications + ' Articles. Cited ' + nCitedby + '  times.'
+
+# times.\n\nreliability by hindex (' + str(hindex) + '): '
         return (Greply)
     except:
         return()
@@ -113,7 +133,7 @@ def get_qualification_response(url):
     people = get_people_from_article(url)
     people = list(set(people))
 
-    #print(people)
+    print(people)
 
     Qual_list = ""
     qualifications = None
@@ -122,38 +142,37 @@ def get_qualification_response(url):
 
         for person in people:
             
+            print(person)
+
             if not api:
                 print("ORCID Api Failed. Skipping ORCID Search")
 
             else:
                 qualifications = search_orcid_credentials(api, person)
 
-            if not qualifications:
-                Gqualifications = search_google_scholar_credentials(person)
+            Gqualifications = search_google_scholar_credentials(person)
 
-                if not Gqualifications:
-                    Qual_list = Qual_list   + person + ": No ORCID or Google Scholar qualifications found\n\n"
-                else:
-                    Qual_list = Qual_list + person + " " + Gqualifications  + "\n\n"
+            if not Gqualifications and not qualifications:
+                Qual_list = Qual_list   + person + ": No ORCID or Google Scholar qualifications found\n\n"
             else:
-                Qual_list = Qual_list + person + " ORCID Found: " + qualifications + "\n\n"
+                
+                Qual_list = Qual_list + person + ".\n\n"
 
-        return(Qual_list)
+                if not qualifications:
+                
+                    Qual_list = Qual_list + Gqualifications  + "\n\n"
+                else:
+                    Qual_list = Qual_list + "ORCID Found: " + qualifications + "\n\n"
+          
+
+            return(Qual_list)
 
     else:
         return(None)
 
 # Main
 
-try:
-
-    api = orcid.PublicAPI(institution_key, institution_secret, sandbox=False)
-    search_token = api.get_search_token_from_orcid()
-    print("ORCID api token obtained")
-
-except:
-    api = None
-    print("unable to get ORCID api")
+api = None
 
 r = bot_login()
 while True:
